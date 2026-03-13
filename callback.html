@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lost Trades — Autenticando...</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:system-ui,sans-serif;background:#080b10;color:#cbd5e1;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:20px;}
+.box{background:#0d1117;border:1px solid #1e2d3d;border-radius:14px;padding:36px 32px;max-width:380px;width:100%;}
+.icon{font-size:52px;margin-bottom:16px;display:block;}
+h2{font-size:20px;font-weight:800;color:#f1f5f9;margin-bottom:8px;}
+p{font-size:13px;color:#64748b;line-height:1.6;}
+.bar{width:100%;height:3px;background:#1e2d3d;border-radius:2px;margin-top:20px;overflow:hidden;}
+.bar-fill{height:100%;background:linear-gradient(90deg,#00d4ff,#8b5cf6);border-radius:2px;animation:load 1.5s ease forwards;}
+@keyframes load{from{width:0}to{width:100%}}
+</style>
+</head>
+<body>
+<div class="box">
+  <span class="icon" id="icon">⏳</span>
+  <h2 id="title">Autenticando...</h2>
+  <p id="msg">Verificando suas credenciais. Aguarde.</p>
+  <div class="bar" id="barWrap"><div class="bar-fill"></div></div>
+</div>
+<script>
+function setStatus(icon,title,msg){
+  document.getElementById('icon').textContent=icon;
+  document.getElementById('title').textContent=title;
+  document.getElementById('msg').textContent=msg;
+  document.getElementById('barWrap').style.display='none';
+}
+
+window.onload=function(){
+  // Parse access_token from URL hash (implicit flow)
+  const hash=Object.fromEntries(new URLSearchParams(window.location.hash.replace('#','')));
+  const query=Object.fromEntries(new URLSearchParams(window.location.search.replace('?','')));
+  const token=hash.access_token||query.access_token;
+  const error=hash.error||query.error;
+  const state=hash.state||query.state||'';
+
+  if(error){
+    setStatus('❌','Login cancelado','Feche esta aba e tente novamente.');
+    setTimeout(()=>window.close(),2500);
+    return;
+  }
+  if(!token){
+    setStatus('❌','Erro de autenticação','Token não encontrado. Feche e tente novamente.');
+    setTimeout(()=>window.close(),2500);
+    return;
+  }
+
+  // Detect provider from state
+  const provider=state.startsWith('google_')?'google':'discord';
+  const result={provider,token};
+
+  setStatus('✅','Login realizado!','Fechando e voltando ao site...');
+
+  // Send to parent window via postMessage
+  try{
+    if(window.opener&&!window.opener.closed){
+      window.opener.postMessage({type:'lt_oauth_'+provider,...result},'*');
+      window.opener.sessionStorage.setItem('lt_oauth_result',JSON.stringify(result));
+    }
+  }catch(e){}
+
+  // Also write to sessionStorage (same origin fallback)
+  try{ sessionStorage.setItem('lt_oauth_result',JSON.stringify(result)); }catch(e){}
+
+  setTimeout(()=>{
+    window.close();
+    setStatus('✅','Pode fechar esta aba!','Autenticação concluída. Volte ao Lost Trades.');
+  },1200);
+};
+</script>
+</body>
+</html>
